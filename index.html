@@ -142,19 +142,19 @@ body[data-style="aftereffect"] #tx{color:#c7d3dc}
 <script>
 /* ===== CONFIG ===== */
 const CFG={
-  API_URL:'https://script.google.com/macros/s/AKfycbyN3e4V4v81KrzWVlM7CfE0_J2Eb1amXqG0nltDJREIwiBZpQyknF2TPhVuswBh7x1zPA/exec',          // paste your Apps Script Web App URL (…/exec). Empty = built-in demo data
+  API_URL:'https://script.google.com/macros/s/AKfycbxriF2s8FJ0ZwrbEw9bp4ZJNRrEWcGKTJU-6yk9o9R2K8hVnBhQZcz--GOo9lFaWB9yLA/exec',          // paste your Apps Script Web App URL (…/exec). Empty = built-in demo data
   POLL:10,             // seconds between schedule checks (lower = faster switching)
   DEFAULT_SEC:12,      // used when NewsDisplaySeconds is empty
   TZ:'Asia/Phnom_Penh',
   KEYS_URL:'',         // same Apps Script /exec URL, used with ?keys=1 — leave blank to reuse API_URL
   KEYS_TOKEN:''        // must match ADMIN_TOKEN in Code.gs. Keep this file private if you set real keys here.
 };
-/* URL options: ?screen=lobby (per-display schedule)  ?sheet=News_Special (force a tab)  ?hud=0 (hide the whole top bar)  ?live=0 (hide the LIVE badge)  ?clock=0 (hide the timestamp)  ?icon=1 (show the video player controls / ▶ icon)  ?footer=0 (hide the bottom source + 1/5 counter)  ?buttons=0 (hide the style/format/sound/gear buttons; ?buttons=1 brings them back)
+/* URL options: ?screen=lobby (per-display schedule)  ?sheet=News_Special (force a tab)  ?hud=0 (hide the whole top bar)  ?live=0 (hide the LIVE badge)  ?clock=0 (hide the timestamp)  ?icon=1 (show the video player controls / ▶ icon)  ?footer=0 (hide the bottom source + 1/5 counter)
    ?format=16:9|4:5|9:16 (canvas shape, also toggled live with the ⇄ button — default 4:5, i.e. 1080×1350)
    ?bg=0 (remove the black panel behind the text)  ?tag=Some+Text (override the corner tag, blank removes it)
    ?style=classic|minimal|canva|broadcast|neon|capcut|aftereffect (lower-third look, also toggled live with the button
    next to the format one) — any of these can also live in the
-   Settings sheet (Key/Value tab: TextBackground, LowerThirdStyle, Format, ShowLive, ShowClock, ShowFooter, ShowButtons, ShowPlayerIcon) so every display
+   Settings sheet (Key/Value tab: TextBackground, LowerThirdStyle, Format, ShowLive, ShowClock, ShowFooter, ShowPlayerIcon) so every display
    picks them up without editing the URL; a URL param always wins over the sheet for that one display. */
 /* Sheet columns: ImageURL VideoURL Title URL NewsText NewsUrl NewsDisplaySeconds AudioURL NewsTextTime TextHoldSeconds TagText
    VideoURL accepts a direct .mp4/.webm file OR a normal YouTube link (watch/shorts/youtu.be) —
@@ -301,8 +301,6 @@ function applySettings(s){
   $('clock').style.display=showClock?'':'none';
   $('top').style.display=(q.get('hud')==='0'||(!showLive&&!showClock))?'none':'';   // both hidden (or ?hud=0) -> drop the whole bar
   $('foot').style.display=flag(q.get('footer'),s.ShowFooter,true)?'':'none';   // bottom source + "1 / 5" counter
-  const showBtns=flag(q.get('buttons'),s.ShowButtons,true);   // style / format / sound / gear buttons, bottom-right
-  ['styleBtn','fmt','mute','gear'].forEach(id=>$(id).style.display=showBtns?'':'none');
   showPlayer=flag(q.get('icon'),s.ShowPlayerIcon,false);
   document.querySelectorAll('#media video').forEach(v=>v.controls=showPlayer);      // clips already on screen; YouTube ones pick it up from the next clip
   document.querySelectorAll('.ytframe').forEach(f=>f.style.pointerEvents=showPlayer?'auto':'none');
