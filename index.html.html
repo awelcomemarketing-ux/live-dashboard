@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:#05070b;overflow:hidden;font-family:'Noto Sans Khmer','Segoe UI',Arial,sans-serif}
+:root{--sw:1080px;--sh:1350px}
+#stage{position:absolute;left:50%;top:50%;width:var(--sw);height:var(--sh);background:#000;overflow:hidden;transform-origin:center}
+#media,#top,#news{position:absolute;left:0;right:0}
+#media{inset:0}
+.slide{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background-size:cover;background-position:center;opacity:0;transform:translateX(-90px);transition:opacity 1.2s ease,transform 1.6s ease}
+.slide.on{opacity:1;transform:none}
+.slide.out{opacity:0;transform:translateX(90px)}
+.ytframe{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border:0;pointer-events:none}   /* width/height set in JS to cover the current stage size */
+#top{top:0;padding:3.33% 4.07%;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(#000b,transparent)}
+.live{display:flex;align-items:center;gap:12px;background:#e11d2e;color:#fff;font-weight:800;font-size:calc(var(--sw)*.0315);letter-spacing:3px;padding:.74% 2.04%;border-radius:8px}
+.live i{width:18px;height:18px;border-radius:50%;background:#fff;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.15}}
+#clock{margin-left:auto;color:#fff;font-size:calc(var(--sw)*.0315);font-weight:700;text-shadow:0 2px 8px #000}
+#news{bottom:0;height:40%;background:linear-gradient(to top,#000 0,#000e 65%,transparent)}   /* NewsBackground=FALSE in the Settings sheet (or ?bg=0) removes this via .nobg below */
+#tag{position:absolute;left:4.07%;top:4.15%;background:#ffd400;color:#111;font-weight:800;font-size:calc(var(--sw)*.0278);letter-spacing:2px;padding:.56% 2.04%}   /* text comes from each News row's TagText column, blank hides it */
+#win{position:absolute;left:4.07%;right:4.07%;top:9.63%;bottom:5.19%;overflow:hidden;-webkit-mask-image:linear-gradient(transparent,#000 10%,#000 90%,transparent);mask-image:linear-gradient(transparent,#000 10%,#000 90%,transparent)}
+#scroll{position:absolute;left:0;right:0;top:0}
+h1{font-size:calc(var(--sw)*.0556);line-height:1.3;font-weight:800;color:#ffd400;margin-bottom:18px}
+h1 a{color:inherit;text-decoration:none}
+#tx{font-size:calc(var(--sw)*.0389);line-height:1.5;color:#fff;font-weight:400;white-space:pre-line;transition:transform .6s ease,opacity .6s ease}
+#foot{position:absolute;left:4.07%;right:4.07%;bottom:1.48%;display:flex;justify-content:space-between;color:#9aa4b2;font-size:calc(var(--sw)*.0241)}
+
+/* NewsBackground=FALSE (Settings sheet) or ?bg=0 — strips the panel treatment so only the text sits over the video/photo */
+.nobg #news{background:none!important;clip-path:none!important}
+.nobg #win{background:none!important;box-shadow:none!important;backdrop-filter:none!important;border:none!important}
+
+/* ===== Lower-third style presets — pick with Settings!LowerThirdStyle or ?style=, default "classic" needs no attribute ===== */
+body[data-style="minimal"] #news{background:linear-gradient(to top,#000000b3,transparent 70%)}
+body[data-style="minimal"] #tag{background:transparent;color:#fff;font-weight:700;padding:0 0 6px;letter-spacing:4px;border-bottom:3px solid #e11d2e}
+body[data-style="minimal"] h1{color:#fff}
+body[data-style="minimal"] #tx{color:#d7dbe3}
+
+body[data-style="canva"] #news{background:linear-gradient(to top,#0d0f1acc,transparent 78%)}
+body[data-style="canva"] #win{background:#12162066;border-radius:28px;backdrop-filter:blur(6px);box-shadow:0 12px 40px #0008;padding:24px 32px;top:8%;bottom:6%}
+body[data-style="canva"] #tag{background:linear-gradient(90deg,#ff7a59,#ff4d8d);color:#fff;border-radius:999px}
+body[data-style="canva"] h1{background:linear-gradient(90deg,#ffd76a,#ff8bd0);-webkit-background-clip:text;background-clip:text;color:transparent}
+body[data-style="canva"] #tx{color:#f1eefc}
+
+body[data-style="broadcast"] #news{background:#0b0e14;clip-path:polygon(0 6%,100% 0,100% 100%,0 100%)}
+body[data-style="broadcast"] #tag{background:#e11d2e;color:#fff;clip-path:polygon(0 0,100% 0,90% 100%,0 100%);padding-right:4.5%}
+body[data-style="broadcast"] h1{color:#fff;font-size:calc(var(--sw)*.058)}
+body[data-style="broadcast"] #tx{color:#c9ccd4;border-left:4px solid #e11d2e;padding-left:16px}
+
+body[data-style="neon"] #news{background:linear-gradient(to top,#05070bcc,transparent 75%)}
+body[data-style="neon"] #win{border:1px solid #38f9ff55;box-shadow:0 0 30px #38f9ff33,inset 0 0 30px #ff2bd633;border-radius:18px;background:#05070b66}
+body[data-style="neon"] #tag{background:transparent;color:#38f9ff;text-shadow:0 0 12px #38f9ff;border:1px solid #38f9ff;border-radius:6px}
+body[data-style="neon"] h1{color:#fff;text-shadow:0 0 16px #ff2bd6}
+body[data-style="neon"] #tx{color:#c8f8ff}
+
+body[data-style="capcut"] #news{background:none}
+body[data-style="capcut"] #tag{background:#ffe600;color:#111;border-radius:8px;font-weight:900}
+body[data-style="capcut"] h1{color:#fff;-webkit-text-stroke:2px #000;-webkit-text-fill-color:#fff;text-shadow:0 4px 0 #000}
+body[data-style="capcut"] #tx{color:#fff;font-weight:700;-webkit-text-stroke:1px #000;-webkit-text-fill-color:#fff}
+
+body[data-style="aftereffect"] #news{background:linear-gradient(to top,#000000e6,transparent 60%)}
+body[data-style="aftereffect"] #win{border-top:2px solid #4fd1ff;padding-top:14px}
+body[data-style="aftereffect"] #tag{background:none;color:#4fd1ff;letter-spacing:4px;padding:0;border:0}
+body[data-style="aftereffect"] h1{color:#fff;font-weight:600;letter-spacing:1px}
+body[data-style="aftereffect"] #tx{color:#c7d3dc}
+
+#gear{position:fixed;right:18px;bottom:18px;z-index:50;width:44px;height:44px;border-radius:50%;background:#1a1f29cc;color:#fff;border:1px solid #3a4152;font-size:20px;cursor:pointer}
+#mute{position:fixed;right:70px;bottom:18px;z-index:50;width:44px;height:44px;border-radius:50%;background:#1a1f29cc;color:#fff;border:1px solid #3a4152;font-size:20px;cursor:pointer}
+#mute.on{background:#e11d2ecc;border-color:#e11d2e}
+#fmt{position:fixed;right:122px;bottom:18px;z-index:50;height:44px;padding:0 14px;border-radius:22px;background:#1a1f29cc;color:#fff;border:1px solid #3a4152;font-size:14px;font-weight:700;cursor:pointer}
+#styleBtn{position:fixed;right:212px;bottom:18px;z-index:50;height:44px;padding:0 14px;border-radius:22px;background:#1a1f29cc;color:#fff;border:1px solid #3a4152;font-size:14px;font-weight:700;cursor:pointer}
+#golive{position:fixed;inset:0;z-index:60;background:#0b0e14ee;display:none;align-items:center;justify-content:center;font-family:'Segoe UI',Arial,sans-serif;color:#e6e9ef}
+#golive.on{display:flex}
+.gl-box{width:min(720px,92vw);max-height:88vh;overflow:auto;background:#141924;border:1px solid #2a3040;border-radius:14px;padding:26px 28px}
+.gl-box h2{font-size:20px;margin-bottom:4px}
+.gl-box p.hint{color:#8b93a3;font-size:13px;margin-bottom:16px}
+.gl-tabs{display:flex;gap:8px;margin-bottom:18px}
+.gl-tab{flex:1;padding:10px;text-align:center;border-radius:8px;background:#1e2430;cursor:pointer;font-size:14px;font-weight:600;color:#9aa4b2}
+.gl-tab.active{background:#e11d2e;color:#fff}
+.gl-panel{display:none}
+.gl-panel.active{display:block}
+.plat{border:1px solid #2a3040;border-radius:10px;padding:14px;margin-bottom:12px}
+.plat h3{font-size:15px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.row{display:flex;gap:8px;margin-bottom:8px}
+.row input{flex:1;background:#0d1117;border:1px solid #2a3040;border-radius:6px;color:#e6e9ef;padding:8px 10px;font-size:13px;font-family:monospace}
+.row button{background:#2a3040;color:#fff;border:none;border-radius:6px;padding:0 14px;font-size:13px;cursor:pointer}
+.row button:hover{background:#3a4258}
+.note{font-size:12px;color:#8b93a3;line-height:1.5;margin-top:4px}
+.gl-close{float:right;background:none;border:none;color:#8b93a3;font-size:20px;cursor:pointer}
+.badge{font-size:11px;padding:2px 8px;border-radius:20px;background:#2a3040;color:#9aa4b2}
+.badge.ok{background:#1c4d2b;color:#7be29a}
+#whipLog{white-space:pre-wrap;font-family:monospace;font-size:12px;background:#0d1117;border-radius:8px;padding:10px;margin-top:10px;max-height:120px;overflow:auto;color:#8b93a3}
+</style></head>
+<body>
+<div id="stage">
+  <div id="media"></div>
+  <div id="top"><div class="live"><i></i>LIVE</div><div id="clock"></div></div>
+  <div id="news">
+    <div id="tag" style="display:none"></div>
+    <div id="win"><div id="scroll"><h1 id="tt"></h1><div id="tx"></div></div></div>
+    <div id="foot"><span id="src"></span><span id="cnt"></span></div>
+  </div>
+</div>
+<button id="styleBtn" title="Change lower-third style (classic / minimal / canva / broadcast / neon / capcut / aftereffect)">Classic</button>
+<button id="fmt" title="Change aspect ratio (16:9 / 4:5 / 9:16)">4:5</button>
+<button id="mute" title="Sound on/off">🔇</button>
+<button id="gear" title="Go Live setup">⚙</button>
+<div id="golive">
+  <div class="gl-box">
+    <button class="gl-close" id="glClose">✕</button>
+    <h2>Go Live</h2>
+    <p class="hint">Push this dashboard to Facebook, TikTok and YouTube. Keys load from your LiveKeys sheet.</p>
+    <div class="gl-tabs">
+      <div class="gl-tab active" data-t="obs">Option 1 · OBS (recommended)</div>
+      <div class="gl-tab" data-t="direct">Option 2 · Direct from browser</div>
+    </div>
+
+    <div class="gl-panel active" id="p-obs">
+      <p class="note">1) In OBS add a <b>Browser Source</b> with this page's URL, size matching whatever format you've picked with the ⇄ button (1080×1350 by default — see ?format= below). 2) In OBS Settings ▸ Stream (or the Multistream plugin) paste the Server + Stream Key below for each platform you want live. OBS does the actual RTMP push — this is the reliable option and works with every platform.</p>
+      <div class="row"><input id="browserSrcUrl" readonly><button data-copy="browserSrcUrl">Copy source URL</button></div>
+      <div id="platList"></div>
+      <p class="note">Keys are pulled from Code.gs via a token-protected endpoint — see CFG.KEYS_URL / CFG.KEYS_TOKEN at the top of this file's script. Never expose that URL/token publicly.</p>
+    </div>
+
+    <div class="gl-panel" id="p-direct">
+      <p class="note"><b>Limitation:</b> Facebook, TikTok and YouTube only accept RTMP ingest — browsers cannot send RTMP directly, and none of the three officially accept WebRTC/WHIP from a browser. This option only works if a platform/stream key below has a <b>WHIP URL</b> (e.g. a relay service such as Cloudflare Stream or a self-hosted MediaMTX that re-publishes to RTMP for you). Otherwise, use Option 1.</p>
+      <div class="row"><select id="whipPlat" style="flex:1;background:#0d1117;border:1px solid #2a3040;border-radius:6px;color:#e6e9ef;padding:8px"></select></div>
+      <div class="row"><input id="whipUrl" placeholder="WHIP endpoint URL"></div>
+      <div class="row">
+        <button id="whipStart">Start camera/mic</button>
+        <button id="whipShare">Share this dashboard tab</button>
+        <button id="whipPublish">Publish</button>
+        <button id="whipStop">Stop</button>
+      </div>
+      <video id="whipPreview" muted playsinline style="width:100%;border-radius:8px;background:#000;margin-top:8px"></video>
+      <div id="whipLog"></div>
+    </div>
+  </div>
+</div>
+<script>
+/* ===== CONFIG ===== */
+const CFG={
+  API_URL:'https://script.google.com/macros/s/AKfycbyN3e4V4v81KrzWVlM7CfE0_J2Eb1amXqG0nltDJREIwiBZpQyknF2TPhVuswBh7x1zPA/exec',          // paste your Apps Script Web App URL (…/exec). Empty = built-in demo data
+  POLL:10,             // seconds between schedule checks (lower = faster switching)
+  DEFAULT_SEC:12,      // used when NewsDisplaySeconds is empty
+  TZ:'Asia/Phnom_Penh',
+  KEYS_URL:'',         // same Apps Script /exec URL, used with ?keys=1 — leave blank to reuse API_URL
+  KEYS_TOKEN:''        // must match ADMIN_TOKEN in Code.gs. Keep this file private if you set real keys here.
+};
+/* URL options: ?screen=lobby (per-display schedule)  ?sheet=News_Special (force a tab)  ?hud=0 (hide the whole top bar)  ?live=0 (hide the LIVE badge)  ?clock=0 (hide the timestamp)  ?icon=1 (show the video player controls / ▶ icon)  ?footer=0 (hide the bottom source + 1/5 counter)  ?buttons=0 (hide the style/format/sound/gear buttons; ?buttons=1 brings them back)
+   ?format=16:9|4:5|9:16 (canvas shape, also toggled live with the ⇄ button — default 4:5, i.e. 1080×1350)
+   ?bg=0 (remove the black panel behind the text)  ?tag=Some+Text (override the corner tag, blank removes it)
+   ?style=classic|minimal|canva|broadcast|neon|capcut|aftereffect (lower-third look, also toggled live with the button
+   next to the format one) — any of these can also live in the
+   Settings sheet (Key/Value tab: TextBackground, LowerThirdStyle, Format, ShowLive, ShowClock, ShowFooter, ShowButtons, ShowPlayerIcon) so every display
+   picks them up without editing the URL; a URL param always wins over the sheet for that one display. */
+/* Sheet columns: ImageURL VideoURL Title URL NewsText NewsUrl NewsDisplaySeconds AudioURL NewsTextTime TextHoldSeconds TagText
+   VideoURL accepts a direct .mp4/.webm file OR a normal YouTube link (watch/shorts/youtu.be) —
+   YouTube links are shown via an embedded player automatically, cropped to fill the card.
+   Add "@seconds" to set how long a specific image or the video shows, e.g.
+     ImageURL:  https://…/a.jpg@6|https://…/b.jpg@10   (each image gets its own time; card total = sum)
+     VideoURL:  https://youtu.be/XXXXXXXXXXX@20         (this video's card shows for 20s)
+   Leave off "@seconds" to fall back to NewsDisplaySeconds (split evenly across images, as before).
+   Use "@start-end" instead of a single number to write that duration as two numbers, e.g.
+   "https://…/a.jpg@10-16" is the same 6s as "@6" — and on VideoURL it also TRIMS the clip to
+   just that window of the source (seconds 10–16), looping inside it instead of the whole file.
+   Works the same way on YouTube links.
+   ImageURL/VideoURL also accept a file sitting in your Google Drive instead of a public URL —
+   handy for photos/clips uploaded straight from a PC. Paste the normal Drive share link (it does
+   NOT need "Anyone with the link" — Code.gs reads it with its own access) or just "drive:FILE_ID"
+   if you've copied the file's ID. "@start-end" still works on top, e.g. "drive:1AbC…xyz@2-8". Best
+   for images and short clips (files up to about 20 MB) — keep long videos on YouTube or a direct host.
+   First time only: run authorizeDrive() once in the Apps Script editor, then deploy a New version.
+   NewsTextTime optionally gives the headline/body text its OWN "start-end" window in seconds,
+   independent of the images/video above — e.g. "3-10" makes the text appear at 3s and clear
+   at 10s (a single number like "6" means "0-6"). Leave it blank and the text spans the whole
+   card as before. Whichever needs more time — the media or the text — sets the card's total length.
+   TextHoldSeconds turns NewsText into a slow paragraph-by-paragraph reveal instead of one
+   continuous scroll: split NewsText into paragraphs with line breaks (put each sentence on its
+   own line for a sentence-at-a-time reveal), and each one slides up into place and HOLDS still
+   before the next replaces it — easier to read than a fast scroll. Set it to a number of seconds
+   for a fixed hold, or to "auto" to let each paragraph's hold time follow its own word count
+   (~2.3 words/sec + 1s to settle, 3s minimum) — a ~15-word sentence holds ~8s, a ~30-word one
+   ~14s, so you don't have to time it by hand. This is the recommended setting regardless of
+   which LowerThirdStyle is active, since reading time tracks word count, not the visual skin.
+   Leave TextHoldSeconds blank for the old continuous scroll-up behaviour. If NewsTextTime is
+   blank too, the card automatically stays up long enough for every paragraph to get its hold;
+   set NewsTextTime as well to cap it at a fixed window instead.
+   AudioURL is optional per-row narration/background sound; the 🔇/🔊 button (bottom-right)
+   controls it and any video's own audio together, and starts muted by default.
+   TagText is the corner tag for that row's card, set right on the News sheet (e.g. "HOT LINE NEWS"
+   on a breaking row, "WEATHER" on a weather row). Blank = no tag on that card; "none" also hides it.
+   It is no longer read from the Settings sheet. ?tag=Some+Text on the URL only fills in for rows
+   whose TagText is blank, on that one display. */
+const q=new URLSearchParams(location.search), $=id=>document.getElementById(id);
+const DEMO={sheet:'DEMO',items:[
+ {ImageURL:'https://picsum.photos/seed/pp1/1080/1350@5|https://picsum.photos/seed/pp2/1080/1350@9',Title:'Demo headline one',NewsText:'Paste your Apps Script URL into CFG.API_URL to load real news from Google Sheets. Add "@6" after an image URL to give it its own duration — this first image shows 5s, the second 9s. NewsTextTime "0-6" hides this text after 6s while the photos keep going.',NewsUrl:'https://example.com/news',NewsDisplaySeconds:'12',AudioURL:'',NewsTextTime:'0-6',TagText:'HOT LINE NEWS'},
+ {ImageURL:'https://picsum.photos/seed/pp3/1080/1350',Title:'Demo headline two',NewsText:'TextHoldSeconds "auto" reveals one line at a time.\nEach line holds just long enough to read its own word count.\nA longer sentence like this one automatically gets more time than a short one.',NewsDisplaySeconds:'10',AudioURL:'',TextHoldSeconds:'auto',TagText:'HOT LINE NEWS'}]};
+let items=[],sheet=null,idx=-1,timer,slideTimer,textShowTimer,textHideTimer,paraTimer,sig='',settingsSig='';
+const safe=u=>/^https?:\/\//i.test(u)?u:'';
+const ytId=u=>{const m=/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/.exec(u||'');return m?m[1]:null};
+// "https://…/img.jpg@8"      -> {url,start:null,end:8,sec:8}   (duration only, counted from 0)
+// "https://…/clip.mp4@10-16" -> {url,start:10,end:16,sec:6}    (explicit start-end: trims video / same duration, written as two numbers)
+// "https://…/img.jpg"        -> {url,start:null,end:null,sec:null}  (no "@" at all -> caller picks a fallback)
+const parseDur=s=>{
+  const m=/^(.*)@(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?\s*$/.exec(s.trim());
+  if(!m)return{url:s.trim(),start:null,end:null,sec:null};
+  const a=+m[2];
+  if(m[3]!=null){const b=+m[3];return{url:m[1].trim(),start:a,end:b,sec:Math.max(0,b-a)}}
+  return{url:m[1].trim(),start:null,end:a,sec:a};
+};
+// NewsTextTime: ""->null (text spans the whole card, as before) | "8"->{start:0,end:8} | "3-10"->{start:3,end:10}
+const parseSpan=s=>{
+  s=(s||'').trim();if(!s)return null;
+  const m=/^(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?$/.exec(s);
+  if(!m)return null;
+  return m[2]!=null?{start:+m[1],end:+m[2]}:{start:0,end:+m[1]};
+};
+let muted=localStorage.getItem('ld_muted')!=='0';   // starts muted so autoplay is never blocked by the browser
+const cardAudio=new Audio();cardAudio.loop=true;
+
+function syncMute(){
+  $('mute').textContent=muted?'🔇':'🔊';
+  $('mute').classList.toggle('on',!muted);
+  cardAudio.muted=muted;
+  document.querySelectorAll('#media video').forEach(v=>v.muted=muted);
+  document.querySelectorAll('.ytframe').forEach(f=>{
+    try{f.contentWindow.postMessage(JSON.stringify({event:'command',func:muted?'mute':'unMute',args:[]}),'*')}catch(e){}
+  });
+}
+$('mute').onclick=()=>{muted=!muted;localStorage.setItem('ld_muted',muted?'1':'0');syncMute();if(!muted)cardAudio.play().catch(()=>{})};
+syncMute();
+
+/* ===== Canvas format (16:9 / 4:5 / 9:16) — from ?format=, else Settings!Format, else 4:5 ===== */
+const FORMATS={'16:9':[1920,1080],'4:5':[1080,1350],'9:16':[1080,1920]};
+const FMT_ORDER=['4:5','16:9','9:16'];
+let curFormat='4:5',stageW=1080,stageH=1350;
+function setFormat(f){
+  if(!FORMATS[f])f='4:5';
+  curFormat=f;[stageW,stageH]=FORMATS[f];
+  document.documentElement.style.setProperty('--sw',stageW+'px');
+  document.documentElement.style.setProperty('--sh',stageH+'px');
+  $('fmt').textContent=f;
+  document.querySelectorAll('.ytframe').forEach(sizeYt);   // resize any video already on screen
+  fit();
+}
+function fit(){$('stage').style.transform=`translate(-50%,-50%) scale(${Math.min(innerWidth/stageW,innerHeight/stageH)})`}
+addEventListener('resize',fit);
+ondblclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+if(q.get('hud')==='0')$('top').style.display='none';
+$('fmt').onclick=()=>{
+  const next=FMT_ORDER[(FMT_ORDER.indexOf(curFormat)+1)%FMT_ORDER.length];
+  setFormat(next);
+  const u=new URL(location);u.searchParams.set('format',next);history.replaceState(null,'',u);   // survives a refresh
+};
+
+// sizes a YouTube iframe to always cover the current stage (native 16:9), like object-fit:cover
+function sizeYt(f){
+  const ar=16/9;let w=stageH*ar,h=stageH;
+  if(w<stageW){w=stageW;h=stageW/ar}
+  f.style.width=w+'px';f.style.height=h+'px';
+}
+
+/* ===== Lower-third style (classic / minimal / canva / broadcast / neon / capcut / aftereffect) — from ?style=, else Settings!LowerThirdStyle, else classic.
+   The button cycles through them live for a quick PC preview and bakes the choice into the source URL, same as the format button. ===== */
+const STYLES=['classic','minimal','canva','broadcast','neon','capcut','aftereffect'];
+let curStyle='classic';
+function setStyle(st){
+  if(!STYLES.includes(st))st='classic';
+  curStyle=st;document.body.dataset.style=st;
+  $('styleBtn').textContent=st[0].toUpperCase()+st.slice(1);
+}
+$('styleBtn').onclick=()=>{
+  const next=STYLES[(STYLES.indexOf(curStyle)+1)%STYLES.length];
+  setStyle(next);
+  const u=new URL(location);u.searchParams.set('style',next);history.replaceState(null,'',u);   // survives a refresh
+};
+
+/* ===== Page settings (Settings sheet + URL overrides): text background, lower-third style, format =====
+   The corner tag now comes from each News row's TagText column (e.g. "HOT LINE NEWS"). Blank on the row
+   = no tag for that card, unless this display's URL has ?tag=… which then fills in for blank rows only.
+   The row value "none" always hides the tag for that card. See applyTag(), called from show(). */
+let globalTag='';
+function applyTag(){
+  const it=items[idx]||{};
+  const rowTag=(it.TagText||'').trim();
+  const t=rowTag?(/^(none|-|off)$/i.test(rowTag)?'':rowTag):globalTag;
+  $('tag').textContent=t;$('tag').style.display=t?'':'none';
+}
+let showPlayer=false;   // ShowPlayerIcon / ?icon=1 — video player controls (the ▶ icon bar); hidden by default for a clean broadcast look
+// URL param wins, then the Settings value (TRUE/FALSE/1/0/yes/no), then the default
+const flag=(qv,sv,def)=>qv!=null?qv!=='0':(sv!=null&&sv!==''?!/^(false|0|no)$/i.test(sv):def);
+function applySettings(s){
+  s=s||{};
+  globalTag=q.get('tag')||'';
+  applyTag();
+  const showLive=flag(q.get('live'),s.ShowLive,true), showClock=flag(q.get('clock'),s.ShowClock,true);
+  document.querySelector('.live').style.display=showLive?'':'none';
+  $('clock').style.display=showClock?'':'none';
+  $('top').style.display=(q.get('hud')==='0'||(!showLive&&!showClock))?'none':'';   // both hidden (or ?hud=0) -> drop the whole bar
+  $('foot').style.display=flag(q.get('footer'),s.ShowFooter,true)?'':'none';   // bottom source + "1 / 5" counter
+  const showBtns=flag(q.get('buttons'),s.ShowButtons,true);   // style / format / sound / gear buttons, bottom-right
+  ['styleBtn','fmt','mute','gear'].forEach(id=>$(id).style.display=showBtns?'':'none');
+  showPlayer=flag(q.get('icon'),s.ShowPlayerIcon,false);
+  document.querySelectorAll('#media video').forEach(v=>v.controls=showPlayer);      // clips already on screen; YouTube ones pick it up from the next clip
+  document.querySelectorAll('.ytframe').forEach(f=>f.style.pointerEvents=showPlayer?'auto':'none');
+  const bgQ=q.get('bg');
+  const bgOn=bgQ!=null?bgQ!=='0':!(s.TextBackground!=null&&/^(false|0|no)$/i.test(s.TextBackground));
+  document.body.classList.toggle('nobg',!bgOn);
+  if(!q.get('style'))setStyle(s.LowerThirdStyle||'classic');
+  if(!q.get('format'))setFormat(s.Format||'4:5');
+}
+setFormat(q.get('format')||'4:5');   // initial canvas size — always applied immediately, URL wins if given
+setStyle(q.get('style')||'classic'); // initial lower-third style — URL wins if given
+applySettings({});   // tag/background from URL only for now; sheet values apply once the first poll lands
+
+// Drive files come back from Code.gs as JSON (base64) — Apps Script can't serve raw media — so rebuild them
+// into a blob: URL here. Anything that isn't a Drive proxy URL passes straight through. Cached per URL.
+const driveCache=new Map();
+function resolveMedia(u){
+  if(!/^https:\/\/script\.google\.com\/.*[?&]file=[-\w]{10,}/.test(u))return Promise.resolve(u);
+  if(!driveCache.has(u))driveCache.set(u,fetch(u).then(r=>r.json()).then(d=>{
+    if(!d.ok)throw new Error(d.error);
+    const bin=atob(d.b64),a=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([a],{type:d.mime}));
+  }).catch(e=>{driveCache.delete(u);console.warn('Drive media failed:',e.message||e);return ''}));
+  return driveCache.get(u);
+}
+
+function layer(type,val,ytExtra,vStart,vEnd){
+  const m=$('media'),old=[...m.children];
+  let el;
+  if(type==='video'){
+    const trimmed=vStart!=null&&vEnd!=null;
+    el=Object.assign(document.createElement('video'),{muted:muted,loop:!trimmed,autoplay:true,playsInline:true,controls:showPlayer});
+    if(trimmed){
+      el.addEventListener('loadedmetadata',()=>{el.currentTime=vStart});
+      el.addEventListener('timeupdate',()=>{if(el.currentTime>=vEnd){el.currentTime=vStart;el.play().catch(()=>{})}});
+    }
+    resolveMedia(val).then(src=>{if(src){el.src=src;el.play().catch(()=>{})}});
+  }else if(type==='yt'){
+    el=document.createElement('div');
+    const f=document.createElement('iframe');
+    f.className='ytframe';f.setAttribute('frameborder','0');
+    f.setAttribute('allow','autoplay; encrypted-media');
+    f.src=`https://www.youtube-nocookie.com/embed/${val}?autoplay=1&mute=${muted?1:0}&controls=${showPlayer?1:0}&loop=1&playlist=${val}&modestbranding=1&rel=0&playsinline=1&enablejsapi=1${showPlayer?'':'&disablekb=1&fs=0&iv_load_policy=3'}${ytExtra||''}`;
+    f.style.pointerEvents=showPlayer?'auto':'none';
+    sizeYt(f);
+    el.append(f);
+  }else{
+    el=document.createElement('div');
+    resolveMedia(val).then(src=>{if(src)el.style.backgroundImage=`url("${src.replace(/"/g,'%22')}")`});
+  }
+  el.classList.add('slide');
+  m.append(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('on')));
+  old.forEach(o=>{o.classList.remove('on');o.classList.add('out');setTimeout(()=>o.remove(),1800)});
+}
+
+// Slides one paragraph of NewsText up into place (from slightly below, fading in) and leaves it held there —
+// used by TextHoldSeconds instead of the continuous scroll, so each chunk gets a still moment to read.
+function showParagraph(el,text){
+  el.style.transition='none';
+  el.style.transform='translateY(1.5em)';el.style.opacity='0';
+  el.textContent=text;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    el.style.transition='';
+    el.style.transform='none';el.style.opacity='1';
+  }));
+}
+
+function show(it){
+  clearTimeout(slideTimer);clearTimeout(textShowTimer);clearTimeout(textHideTimer);clearTimeout(paraTimer);
+  applyTag();   // this row's own TagText (blank = none, or ?tag= if the URL has one)
+  const fallback=Math.max(3,+it.NewsDisplaySeconds||CFG.DEFAULT_SEC);   // used when no "@" duration is set anywhere
+  let mediaSec=fallback;
+  const v=parseDur(it.VideoURL||'');
+  const yid=v.url?ytId(v.url):null;
+  if(yid||safe(v.url)){
+    if(yid){
+      const trim=(v.start!=null?`&start=${Math.floor(v.start)}`:'')+(v.end!=null?`&end=${Math.floor(v.end)}`:'');
+      layer('yt',yid,trim);
+    }else{
+      layer('video',v.url,null,v.start,v.end);   // v.start/v.end set only from "@start-end" -> trims to that segment
+    }
+    if(v.sec)mediaSec=Math.max(3,v.sec);         // "VideoURL@20" or "VideoURL@10-30" -> this video's card shows for 20s
+  }else{
+    const slides=(it.ImageURL||'').split(/[|\n]+/).map(s=>s.trim()).filter(Boolean).map(parseDur).filter(p=>safe(p.url));
+    if(slides.length){
+      const anySet=slides.some(p=>p.sec);
+      slides.forEach(p=>{if(!p.sec)p.sec=Math.max(3,fallback/slides.length)});   // even share when none specified
+      if(anySet)mediaSec=slides.reduce((a,p)=>a+p.sec,0);                        // total card time = sum of per-image durations
+      let k=0;layer('img',slides[0].url);
+      if(slides.length>1){
+        const advance=()=>{k=(k+1)%slides.length;layer('img',slides[k].url);slideTimer=setTimeout(advance,slides[k].sec*1000)};
+        slideTimer=setTimeout(advance,slides[0].sec*1000);
+      }
+    }
+  }
+  if(safe(it.AudioURL||'')){
+    if(cardAudio.src!==it.AudioURL){cardAudio.src=it.AudioURL;cardAudio.currentTime=0}
+    cardAudio.muted=muted;cardAudio.play().catch(()=>{});
+  }else{cardAudio.pause();cardAudio.removeAttribute('src')}
+
+  // NewsTextTime: an independent "start-end" window for the headline/body text, separate from the media above.
+  // Blank -> text spans the whole card, exactly as before. "8" -> visible 0-8s. "3-10" -> appears at 3s, clears at 10s.
+  const tSpan=parseSpan(it.NewsTextTime||'');
+  // TextHoldSeconds: a number = every paragraph holds that long. "auto" = each paragraph's hold time is worked
+  // out from its OWN word count (~2.3 words/sec comfortable reading pace + 1s to settle, 3s floor) — so a short
+  // line and a long one each get a fair read without you having to guess seconds. Same reading pace regardless
+  // of which LowerThirdStyle is active; word count is what actually drives how long a read takes, not the skin.
+  const holdRaw=(it.TextHoldSeconds||'').toString().trim().toLowerCase();
+  const autoHold=holdRaw==='auto';
+  const fixedHold=autoHold?0:(+holdRaw||0);
+  const wordsIn=t=>(t.match(/\S+/g)||[]).length;
+  const holdFor=p=>autoHold?Math.max(3,wordsIn(p)/2.3+1):fixedHold;
+  const paras=(autoHold||fixedHold>0)?(it.NewsText||'').split(/\n+/).map(p=>p.trim()).filter(Boolean):[];
+  const holds=paras.map(holdFor);
+  const textStart=tSpan?tSpan.start:0;
+  const textEnd=tSpan?tSpan.end:(paras.length?textStart+holds.reduce((a,b)=>a+b,0):null);
+  const total=Math.max(mediaSec,textEnd||0,3);   // whichever needs more time — media or text — sets the card's total length
+
+  $('src').textContent=it.NewsUrl?it.NewsUrl.replace(/^https?:\/\//,'').split('/')[0]:'';
+  $('cnt').textContent=`${idx+1} / ${items.length}`;
+
+  const paint=()=>{
+    const h=$('tt');h.textContent='';
+    if(safe(it.URL||'')){const a=document.createElement('a');a.href=it.URL;a.target='_blank';a.rel='noopener';a.textContent=it.Title||'';h.append(a)}else h.textContent=it.Title||'';
+    const w=$('win'),s=$('scroll');
+    s.getAnimations().forEach(a=>a.cancel());
+    if(paras.length){
+      s.style.transform='none';                      // paragraph mode holds still — no whole-block scroll
+      let k=0;
+      const step=()=>{showParagraph($('tx'),paras[k]);const ms=holds[k]*1000;k++;if(k<paras.length)paraTimer=setTimeout(step,ms)};
+      step();
+    }else{
+      $('tx').style.transition='none';$('tx').style.transform='none';$('tx').style.opacity='1';
+      $('tx').textContent=it.NewsText||'';
+      const dur=textEnd!=null?Math.max(1,textEnd-textStart):total;
+      s.animate([{transform:`translateY(${w.clientHeight}px)`},{transform:`translateY(${-s.offsetHeight}px)`}],{duration:dur*1000,easing:'linear',fill:'forwards'});
+    }
+  };
+  const clearText=()=>{clearTimeout(paraTimer);$('tt').textContent='';$('tx').textContent='';$('scroll').getAnimations().forEach(a=>a.cancel())};
+  if(textStart>0){clearText();textShowTimer=setTimeout(paint,textStart*1000)}else{paint()}
+  if(textEnd!=null&&textEnd<total)textHideTimer=setTimeout(clearText,textEnd*1000);
+
+  return total;
+}
+
+function next(){
+  clearTimeout(timer);
+  if(!items.length){$('tt').textContent='Waiting for schedule…';$('tx').textContent='';timer=setTimeout(next,3000);return}
+  idx=(idx+1)%items.length;
+  timer=setTimeout(next,show(items[idx])*1000);
+}
+
+async function poll(){
+  try{
+    let d=DEMO;
+    if(CFG.API_URL){
+      const u=new URL(CFG.API_URL);
+      ['screen','sheet'].forEach(k=>q.get(k)&&u.searchParams.set(k,q.get(k)));
+      d=await(await fetch(u,{cache:'no-store'})).json();
+    }
+    const ss=JSON.stringify(d.settings||{});
+    if(ss!==settingsSig){settingsSig=ss;applySettings(d.settings)}     // Settings sheet added/edited: apply first, so the very first card already follows it
+    const s=JSON.stringify(d.items),name=d.sheet||'';
+    $('clock').dataset.sheet=name;
+    if(name!==sheet){sheet=name;items=d.items;sig=s;idx=-1;next()}   // schedule switched: change immediately
+    else if(s!==sig){sig=s;items=d.items}                              // same tab edited: pick up quietly
+  }catch(e){console.warn('poll failed',e)}
+}
+setInterval(()=>{$('clock').textContent=(sheet?sheet+'  •  ':'')+new Date().toLocaleTimeString('en-GB',{timeZone:CFG.TZ})},1000);
+setInterval(poll,CFG.POLL*1000);poll();
+
+/* ===== GO LIVE: Facebook / TikTok / YouTube stream keys → OBS panel + optional direct-browser WHIP ===== */
+const ICON={Facebook:'📘',TikTok:'🎵',YouTube:'▶️'};
+let liveKeys=[];
+$('browserSrcUrl').value=location.href.split('?')[0];
+$('gear').onclick=()=>{$('golive').classList.add('on');loadKeys()};
+$('glClose').onclick=()=>$('golive').classList.remove('on');
+document.querySelectorAll('.gl-tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.gl-tab,.gl-panel').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');$('p-'+t.dataset.t).classList.add('active');
+});
+document.addEventListener('click',e=>{
+  const k=e.target.dataset&&e.target.dataset.copy;
+  if(k)navigator.clipboard.writeText($(k).value).then(()=>{e.target.textContent='Copied ✓';setTimeout(()=>e.target.textContent='Copy',1200)});
+});
+
+async function loadKeys(){
+  const url=CFG.KEYS_URL||CFG.API_URL;
+  const box=$('platList'),sel=$('whipPlat');
+  box.innerHTML='<p class="note">Loading keys…</p>';
+  if(!url){box.innerHTML='<p class="note">Set CFG.KEYS_URL (or API_URL) and CFG.KEYS_TOKEN at the top of this file, matching ADMIN_TOKEN in Code.gs, then reopen this panel.</p>';return}
+  try{
+    const u=new URL(url);u.searchParams.set('keys','1');u.searchParams.set('token',CFG.KEYS_TOKEN);
+    const d=await(await fetch(u,{cache:'no-store'})).json();
+    if(!d.ok)throw new Error(d.error||'denied');
+    liveKeys=d.keys||[];
+    box.innerHTML='';sel.innerHTML='';
+    liveKeys.forEach(k=>{
+      const has=k.RTMPURL&&k.StreamKey;
+      box.insertAdjacentHTML('beforeend',`<div class="plat"><h3>${ICON[k.Platform]||'●'} ${k.Platform} <span class="badge ${has?'ok':''}">${has?'configured':'not set'}</span></h3>
+        <div class="row"><input readonly value="${(k.RTMPURL||'').replace(/"/g,'&quot;')}" id="srv-${k.Platform}"><button data-copy="srv-${k.Platform}">Copy server</button></div>
+        <div class="row"><input readonly type="password" value="${(k.StreamKey||'').replace(/"/g,'&quot;')}" id="key-${k.Platform}"><button data-copy="key-${k.Platform}">Copy key</button></div></div>`);
+      const opt=document.createElement('option');opt.value=k.Platform;opt.textContent=k.Platform+(k.WHIPURL?'':'  (no WHIP endpoint)');sel.append(opt);
+    });
+    sel.onchange=()=>{const f=liveKeys.find(x=>x.Platform===sel.value);$('whipUrl').value=f&&f.WHIPURL||''};
+    sel.onchange();
+  }catch(e){box.innerHTML=`<p class="note">Could not load keys (${e.message}). Check CFG.KEYS_TOKEN matches ADMIN_TOKEN in Code.gs, and that the LiveKeys sheet exists.</p>`}
+}
+
+/* Direct-browser WHIP publish (works only against a WHIP-capable endpoint, see note above) */
+let whipStream,whipPC;
+function wlog(m){const l=$('whipLog');l.textContent+=(l.textContent?'\n':'')+m;l.scrollTop=l.scrollHeight}
+$('whipStart').onclick=async()=>{
+  try{whipStream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});$('whipPreview').srcObject=whipStream;wlog('Camera/mic ready.')}
+  catch(e){wlog('getUserMedia failed: '+e.message)}
+};
+$('whipShare').onclick=async()=>{
+  try{whipStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});$('whipPreview').srcObject=whipStream;wlog('Sharing this tab as the source.')}
+  catch(e){wlog('getDisplayMedia failed: '+e.message)}
+};
+$('whipPublish').onclick=async()=>{
+  const url=$('whipUrl').value.trim();
+  if(!url){wlog('Enter a WHIP endpoint URL first (only some relays provide one).');return}
+  if(!whipStream){wlog('Start the camera or share the tab first.');return}
+  try{
+    whipPC=new RTCPeerConnection();
+    whipStream.getTracks().forEach(t=>whipPC.addTrack(t,whipStream));
+    const offer=await whipPC.createOffer();await whipPC.setLocalDescription(offer);
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/sdp'},body:offer.sdp});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const answer=await res.text();
+    await whipPC.setRemoteDescription({type:'answer',sdp:answer});
+    wlog('Publishing via WHIP to '+url);
+  }catch(e){wlog('WHIP publish failed: '+e.message+' — this endpoint may not support WHIP, or the platform needs OBS (Option 1) instead.')}
+};
+$('whipStop').onclick=()=>{
+  whipPC&&whipPC.close();whipPC=null;
+  whipStream&&whipStream.getTracks().forEach(t=>t.stop());whipStream=null;
+  $('whipPreview').srcObject=null;wlog('Stopped.');
+};
+</script>
+</body></html>
